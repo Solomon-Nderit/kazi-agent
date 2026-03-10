@@ -1,0 +1,10 @@
+[project]
+name = "gemini-hackathon"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "google>=3.0.0",
+    "pyaudio>=0.2.14",
+]
