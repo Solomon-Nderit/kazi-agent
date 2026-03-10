@@ -1,0 +1,16 @@
+[project]
+name = "gemini-hackathon"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "d3dshot>=0.1.3",
+    "dasbus>=1.7",
+    "mss>=10.1.0",
+    "opencv-python>=4.13.0.92",
+    "pillow>=12.1.1",
+    "pyaudio>=0.2.14",
+    "pyautogui>=0.9.54",
+    "pynput>=1.8.1",
+]
