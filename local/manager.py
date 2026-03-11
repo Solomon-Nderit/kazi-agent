@@ -35,7 +35,7 @@ def encode_image(img_array: np.ndarray) -> str:
     _, buffer = cv2.imencode('.jpg', img_array, [cv2.IMWRITE_JPEG_QUALITY, 80])
     return base64.b64encode(buffer).decode('utf-8')
 
-def wait_for_ui_stability(step_size: int, delay=0.4, threshold=2.0) -> np.ndarray:
+def wait_for_ui_stability(step_size: int, delay=0.0001, threshold=2.0) -> np.ndarray:
     """
     Prevents screenshotting during UI animations (scrolling, page loading).
     Snaps greyscale low-res versions and checks Mean Squared Error pixel differences.
