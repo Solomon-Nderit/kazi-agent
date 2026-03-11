@@ -1,6 +1,5 @@
-def main():
-    print("Hello from gemini-hackathon!")
+from local.screenshot import get_screen_with_grid
 
+output = get_screen_with_grid()
 
-if __name__ == "__main__":
-    main()
+print(type(output[1]))
