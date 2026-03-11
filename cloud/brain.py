@@ -6,6 +6,12 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException
 from google import genai
 from google.genai import types
 
+from dotenv import load_dotenv
+
+
+
+load_dotenv()
+
 # Define your exact API data constraints based on the `action.py` code
 class ExecuteAction(BaseModel):
     action: str = Field(description="Must be exactly: click, right_click, double_click, type, click_and_type, hotkey, or wait")
@@ -18,7 +24,11 @@ class GeminiDecision(BaseModel):
     actions: List[ExecuteAction] = Field(description="Batch ordered sequence of system OS tasks required to advance the UI.")
 
 app = FastAPI(title="Kazi Copilot Orchestrator")
-ai_client = genai.Client() # Assumes GOOGLE_API_KEY environment variable is set
+ai_client = genai.Client(
+    vertexai=True,
+    project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+    location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+)
 
 # In-Memory Session Storage
 # Maps: { "uuid-string": {"goal": "text", "ledger": ["Action 1", "Action 2"]} }
@@ -92,7 +102,7 @@ async def process_visual_loop(payload: InboundPayload, bg_tasks: BackgroundTasks
 
     try:
         response = ai_client.models.generate_content(
-            model='gemini-1.5-pro',
+            model='gemini-2.0-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,

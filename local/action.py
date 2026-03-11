@@ -65,6 +65,13 @@ def execute_actions(actions_list: list, step_size: int = 50):
                 keys_to_press = []
                 for k in value.split('+'):
                     k = k.strip().lower()
+                    
+                    # Map common names to pynput Key names
+                    if k == 'win':
+                        k = 'cmd'
+                    elif k == 'return':
+                        k = 'enter'
+                    
                     if hasattr(Key, k):
                         keys_to_press.append(getattr(Key, k))
                     else:
