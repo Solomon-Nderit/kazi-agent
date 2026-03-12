@@ -16,7 +16,7 @@ load_dotenv()
 class ExecuteAction(BaseModel):
     action: str = Field(description="Must be exactly: click, right_click, double_click, type, click_and_type, hotkey, or wait")
     target: Optional[str] = Field(description="Alphanumeric grid block (e.g., 'C4'). ONLY USE THIS if an element click is required. Null otherwise.")
-    value: Optional[str] = Field(description="Text string to type if action involves typing. Null otherwise.")
+    value: Optional[str] = Field(description="Text string to type, OR the name of a special key (e.g., 'enter', 'esc', 'tab', 'ctrl+c') if the action is 'hotkey'. Null otherwise.")
 
 class GeminiDecision(BaseModel):
     reasoning: str = Field(description="Brief internal monologue of what UI elements you observed and what you plan to do next.")
@@ -82,27 +82,28 @@ async def process_visual_loop(payload: InboundPayload, bg_tasks: BackgroundTasks
 
     GLOBAL OBJECTIVE: {session['goal']}
     
-    YOUR MEMORY LEDGER (ACTIONS COMPLETED SO FAR IN PREVIOUS STEPS):
+    PREVIOUSLY ATTEMPTED ACTIONS (UNVERIFIED):
     {ledger_str}
     
     DIRECTIONS:
-    1. Look at the attached newly arrived gridded screen image. Identify if the outcome of the LAST ledger item was successful.
-    2. Identify the very next physical elements necessary to progress the objective. 
-    3. Generate the absolute minimal, batch execution chain using the allowed 'action' parameters. Map targets strictly to the overlaid letter-number boxes.
+    1. CRITICAL: Do not assume previous actions succeeded just because they are in the ledger. You MUST verify the current visual state. Look at the attached newly arrived gridded screen image to verify if the outcome of the LAST attempted item actually manifested on screen.
+    2. If the screen has not changed as expected or an application is still loading, your next action should be to either 'wait' or retry the previous action. Do not proceed to the next logical step blindly.
+    3. Identify the very next physical element necessary to progress the objective based ONLY on what you currently see. 
+    4. Generate the absolute minimal execution chain (preferably just ONE action at a time) using the allowed 'action' parameters. Map targets strictly to the overlaid letter-number boxes.
     """
 
     # Format the payload for Gemini strictly typed parsing 
     prompt =[
         types.Part.from_bytes(
             data=base64.b64decode(payload.grid_image_b64),
-            mime_type='image/jpeg'
+            mime_type='image/webp'
         ),
         "What is your next execution plan?"
     ]
 
     try:
         response = ai_client.models.generate_content(
-            model='gemini-2.0-flash',
+            model='gemini-2.5-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -117,7 +118,7 @@ async def process_visual_loop(payload: InboundPayload, bg_tasks: BackgroundTasks
 
         # Update the Text Ledger Memory!
         human_readable_actions =[f"{act.action.upper()} at {act.target} {'val:' + act.value if act.value else ''}" for act in decision.actions]
-        session["ledger"].append(f"Predicted intention based on context: {decision.reasoning}. Fired actions: {human_readable_actions}")
+        session["ledger"].append(f"Reasoning in previous step: {decision.reasoning}. Attempted actions: {human_readable_actions}")
 
         # Kick the image storage and audit processing to a background CPU thread to not throttle OS cursor.
         bg_tasks.add_task(upload_audit_trail_gcs, payload.session_id, len(session["ledger"]), payload.grid_image_b64, decision)

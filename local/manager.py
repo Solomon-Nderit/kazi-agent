@@ -14,6 +14,21 @@ from action import execute_actions
 
 CLOUD_ENDPOINT = "http://127.0.0.1:8000/api/predict" # Change to Cloud Run URL in production
 
+# Development option: Set to True to type commands instead of using voice input
+USE_TYPED_INPUT = True
+
+def get_typed_intent() -> str:
+    """Uses standard input to get initial instruction from the user."""
+    try:
+        intent = input("⌨️ Enter your objective (press Enter to submit): ")
+        if not intent.strip():
+            return None
+        print(f"✅ Intent captured: '{intent}'")
+        return intent
+    except Exception as e:
+        print(f"❌ Error getting input: {e}")
+        return None
+
 def get_audio_intent() -> str:
     """Uses microphone to get initial instruction from the user."""
     recognizer = sr.Recognizer()
@@ -30,9 +45,9 @@ def get_audio_intent() -> str:
 
 def encode_image(img_array: np.ndarray) -> str:
     """Converts OpenCV BGR image into base64 string for HTTP transmission."""
-    # Encode as JPEG with ~80% quality to severely cut payload size 
-    # without sacrificing structural UI shapes or text legibility.
-    _, buffer = cv2.imencode('.jpg', img_array, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    # Encode as WebP with 95% quality. WebP preserves sharp UI text and grid edges 
+    # vastly better than JPEG, while keeping payload size small for API limits.
+    _, buffer = cv2.imencode('.webp', img_array, [cv2.IMWRITE_WEBP_QUALITY, 95])
     return base64.b64encode(buffer).decode('utf-8')
 
 def wait_for_ui_stability(step_size: int, delay=0.0001, threshold=2.0) -> np.ndarray:
@@ -105,10 +120,14 @@ def execute_visual_loop(intent: str):
 # Setup hotkey binder (requires admin rights on Windows)
 def on_hotkey_press():
     print("\n--- Agent Triggered ---")
-    intent = get_audio_intent()
+    if USE_TYPED_INPUT:
+        intent = get_typed_intent()
+    else:
+        intent = get_audio_intent()
+        
     if intent:
         execute_visual_loop(intent)
 
-print("Kazi Local Daemon running. Press CTRL+ALT+A to activate Voice Assistant.")
+print(f"Kazi Local Daemon running. Input mode: {'TYPING' if USE_TYPED_INPUT else 'VOICE'}. Press CTRL+ALT+A to activate Agent.")
 keyboard.add_hotkey('ctrl+alt+a', on_hotkey_press)
 keyboard.wait()

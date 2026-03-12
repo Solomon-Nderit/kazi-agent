@@ -67,7 +67,7 @@ def execute_actions(actions_list: list, step_size: int = 50):
                     k = k.strip().lower()
                     
                     # Map common names to pynput Key names
-                    if k == 'win':
+                    if k in ['win', 'windows']:
                         k = 'cmd'
                     elif k == 'return':
                         k = 'enter'
