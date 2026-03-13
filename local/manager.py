@@ -31,7 +31,7 @@ def send_image():
     response = requests.post(
         url, 
         files={"file": ("screenshot.npy", image_bytes, "application/octet-stream")},
-        data={"instruction": "open msedge"}
+        data={"instruction": "open brave browser and search for cats"}
     )
 
     return response
@@ -65,15 +65,17 @@ def get_actions(ai_response):
     
 
 
-# def carry_out_actions():
-#     actions = [{'action': 'click', 'target': 'BL10'}]
+def carry_out_actions():
+    # response = send_image()
+    # actions = get_actions(response)
+    actions = [{'action': 'click', 'target': 'B24'}, {'action': 'click_and_type', 'target': 'M10', 'value': 'cats'}, {'action': 'press_key', 'value': 'enter'}]
 
-#     for i in actions:
-#         take_action(i)
+    for i in actions:
+        take_action(i)
 
 
-# carry_out_actions()
+carry_out_actions()
 
-response = send_image()
-actions = get_actions(response)
-print(actions)
+# response = send_image()
+# actions = get_actions(response)
+# print(actions)

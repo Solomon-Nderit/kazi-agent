@@ -26,16 +26,20 @@ def label_to_coords(label, step_size=50):
 
 def take_action(actions):
     action = actions['action']
-    target = label_to_coords(actions['target'])
+    
     if actions.get('value'):
         value = actions['value']
 
-
     if action == 'click':
+        target = label_to_coords(actions['target'])
         pyautogui.moveTo(target)
         pyautogui.click()
 
     elif action == "click_and_type":
+        target = label_to_coords(actions['target'])
         pyautogui.moveTo(target)
         pyautogui.click()
         pyautogui.typewrite(value)
+
+    elif action == "press_key":
+        pyautogui.press(value)
