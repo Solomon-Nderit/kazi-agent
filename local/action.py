@@ -1,5 +1,6 @@
 import pyautogui
 import re
+import time
 
 
 def normalized_to_coords(target):
@@ -23,7 +24,11 @@ def take_action(actions):
     action = actions.get('action')
     value = actions.get('value', '')
 
-    valid_actions = ['click', 'move_mouse_and_click', 'click_and_type', 'click_and_type_text', 'press_key', 'press_keyboard_key']
+    valid_actions = [
+        'click', 'move_mouse_and_click', 'click_and_type', 'click_and_type_text', 
+        'type_text', 'press_key', 'press_keyboard_key', 'double_click', 'right_click', 
+        'hotkey', 'scroll', 'wait'
+    ]
     if action not in valid_actions:
         raise ValueError(f"Invalid action '{action}'. Must be one of {valid_actions}.")
 
@@ -38,10 +43,47 @@ def take_action(actions):
         pyautogui.click()
         pyautogui.typewrite(value)
 
+    elif action == 'type_text':
+        pyautogui.typewrite(value)
+
     elif action in ['press_key', 'press_keyboard_key']:
         if value not in pyautogui.KEYBOARD_KEYS:
             raise ValueError(f"Invalid key '{value}'. Key must be a valid PyAutoGUI key (e.g., 'enter', 'win', 'esc', 'tab').")
         pyautogui.press(value)
+
+    elif action == 'double_click':
+        target = normalized_to_coords(actions['target'])
+        pyautogui.moveTo(target)
+        pyautogui.doubleClick()
+
+    elif action == 'right_click':
+        target = normalized_to_coords(actions['target'])
+        pyautogui.moveTo(target)
+        pyautogui.rightClick()
+
+    elif action == 'hotkey':
+        # value should be a comma separated list of keys e.g. "ctrl, c" or "win, r"
+        keys = [k.strip() for k in value.split(',')]
+        for k in keys:
+            if k not in pyautogui.KEYBOARD_KEYS:
+                 raise ValueError(f"Invalid hotkey part '{k}'. Must be a valid PyAutoGUI key.")
+        pyautogui.hotkey(*keys)
+
+    elif action == 'scroll':
+        # value should be the amount to scroll (positive up, negative down)
+        try:
+            scroll_amount = int(value)
+            pyautogui.scroll(scroll_amount)
+        except ValueError:
+             raise ValueError(f"Scroll value must be an integer, got: {value}")
+             
+    elif action == 'wait':
+        # value should be seconds to wait
+        try:
+            wait_amount = float(value)
+            time.sleep(wait_amount)
+        except ValueError:
+             raise ValueError(f"Wait value must be a number (seconds), got: {value}")
 
 def execute_pc_action(action: str, target: str = "", value: str = "") -> dict:
     """Executes a PC automation action on the user's screen.
