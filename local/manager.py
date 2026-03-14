@@ -8,6 +8,8 @@ import numpy as np
 import io
 import cv2
 
+import time
+
 url = "http://127.0.0.1:8000/predict/"
 
 
@@ -16,7 +18,7 @@ url = "http://127.0.0.1:8000/predict/"
 
 
 
-def send_image():
+def send_image(instruction):
     images = get_screen_with_grid()
 
     payload = images[1]
@@ -31,7 +33,7 @@ def send_image():
     response = requests.post(
         url, 
         files={"file": ("screenshot.npy", image_bytes, "application/octet-stream")},
-        data={"instruction": "open brave browser and search for cats"}
+        data={"instruction": instruction}
     )
 
     return response
@@ -65,16 +67,34 @@ def get_actions(ai_response):
     
 
 
-def carry_out_actions():
-    # response = send_image()
-    # actions = get_actions(response)
-    actions = [{'action': 'click', 'target': 'B24'}, {'action': 'click_and_type', 'target': 'M10', 'value': 'cats'}, {'action': 'press_key', 'value': 'enter'}]
+def carry_out_actions(instruction: str):
+    while True:
+        print("Taking screenshot and asking AI...")
+        response = send_image(instruction)
+        actions = get_actions(response)
+        
+        # In case our parsing failed or AI returned an empty list
+        if not actions:
+            print("No valid actions returned. Retrying after 2s...")
+            time.sleep(2)
+            continue
+            
+        action_dict = actions[0]
+        action_type = action_dict.get('action')
+        
+        print(f"Executing: {action_dict}")
+        
+        if action_type == 'done':
+            print("Task completed by AI!")
+            break
+            
+        take_action(action_dict)
+        
+        print("Action taken! Waiting 3s for UI to settle...")
+        time.sleep(3)
 
-    for i in actions:
-        take_action(i)
 
-
-carry_out_actions()
+carry_out_actions("open edge browser and search for cats")
 
 # response = send_image()
 # actions = get_actions(response)
