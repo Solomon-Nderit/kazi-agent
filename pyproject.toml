@@ -9,6 +9,7 @@ dependencies = [
     "dasbus>=1.7",
     "fastapi>=0.135.1",
     "google-api-python-client>=2.192.0",
+    "google-auth>=2.49.0",
     "google-genai>=1.66.0",
     "keyboard>=0.13.5",
     "mss>=10.1.0",

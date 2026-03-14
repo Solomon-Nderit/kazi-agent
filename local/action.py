@@ -2,44 +2,65 @@ import pyautogui
 import re
 
 
-def label_to_coords(label, step_size=50):
-    chars = re.findall(r'[A-Za-z]+|\d+', label)
+def normalized_to_coords(target):
+    # Parses target as normalized coordinates (y, x) scaled 0-1000
+    nums = re.findall(r'\d+', str(target))
+    if len(nums) >= 2:
+        y_norm = int(nums[0])
+        x_norm = int(nums[1])
+    else:
+        raise ValueError(f"Could not parse normalized coordinates from target: {target}")
 
-    # print(chars)
+    screen_width, screen_height = pyautogui.size()
     
-    letter_part = chars[0].upper()
-    number = int(chars[1])
-
-    # Convert standard Excel-style column letters to a number (A=1, Z=26, AA=27)
-    letter_index = 0
-    for char in letter_part:
-        # Multiply current total by 26 and add the character's value (A=1...Z=26)
-        letter_index = letter_index * 26 + (ord(char) - 64)
-
-    # print(f"Letter string: {letter_part}, Calculated Index: {letter_index}")
-
-    x = (letter_index * step_size) - (step_size // 2)
-    y = (number * step_size) - (step_size // 2)
+    x = int((x_norm / 1000.0) * screen_width)
+    y = int((y_norm / 1000.0) * screen_height)
 
     return x, y
 
 
 def take_action(actions):
-    action = actions['action']
-    
-    if actions.get('value'):
-        value = actions['value']
+    action = actions.get('action')
+    value = actions.get('value', '')
 
-    if action == 'click':
-        target = label_to_coords(actions['target'])
+    valid_actions = ['click', 'move_mouse_and_click', 'click_and_type', 'click_and_type_text', 'press_key', 'press_keyboard_key']
+    if action not in valid_actions:
+        raise ValueError(f"Invalid action '{action}'. Must be one of {valid_actions}.")
+
+    if action in ['click', 'move_mouse_and_click']:
+        target = normalized_to_coords(actions['target'])
         pyautogui.moveTo(target)
         pyautogui.click()
 
-    elif action == "click_and_type":
-        target = label_to_coords(actions['target'])
+    elif action in ['click_and_type', 'click_and_type_text']:
+        target = normalized_to_coords(actions['target'])
         pyautogui.moveTo(target)
         pyautogui.click()
         pyautogui.typewrite(value)
 
-    elif action == "press_key":
+    elif action in ['press_key', 'press_keyboard_key']:
+        if value not in pyautogui.KEYBOARD_KEYS:
+            raise ValueError(f"Invalid key '{value}'. Key must be a valid PyAutoGUI key (e.g., 'enter', 'win', 'esc', 'tab').")
         pyautogui.press(value)
+
+def execute_pc_action(action: str, target: str = "", value: str = "") -> dict:
+    """Executes a PC automation action on the user's screen.
+    
+    Args:
+        action: The type of action to perform. Must be one of: 'click', 'click_and_type', 'press_key'.
+        target: The grid coordinate label (e.g., 'A1', 'C5'). Leave empty if not applicable.
+        value: The text to type or the keyboard key to press. Leave empty if not applicable.
+    """
+    # Repackage the arguments into the dictionary your original function expects
+    actions_dict = {'action': action}
+    if target: 
+        actions_dict['target'] = target
+    if value: 
+        actions_dict['value'] = value
+
+    print(f"\n[SYSTEM] Executing local action: {actions_dict}")
+    try:
+        take_action(actions_dict) # This calls your existing pyautogui logic
+        return {"status": "success", "message": f"Successfully performed {action}."}
+    except Exception as e:
+        return {"status": "error", "message": f"Failed due to error: {str(e)}"}
