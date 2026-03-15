@@ -106,17 +106,38 @@ async def client_loop():
                         "text": f"System Objective Engine: The current objective is '{state.current_objective}'. Above is the current screen. What is the EXACT NEXT STEP to achieve this objective? Remember if the objective is complete, you must explicitly tell me so we can end the loop."
                     }))
                     
+            agent_active = False
+
             async def send_audio():
                 while True:
                     data = await asyncio.to_thread(mic_stream.read, CHUNK_SIZE, exception_on_overflow=False)
-                    await websocket.send(data)
+                    if agent_active:
+                        await websocket.send(data)
 
             async def send_text_cli():
+                nonlocal agent_active
+                print("[SYSTEM] Agent running in passive mode. Press Ctrl+Alt+A to activate listening.")
                 while True:
-                    # Wait for hotkey Ctrl+Alt+A
                     await asyncio.sleep(0.1)
                     if keyboard.is_pressed('ctrl+alt+a'):
-                        # To avoid rapid re-triggering, sleep for a fraction
+                        await asyncio.sleep(0.5)
+                        agent_active = not agent_active
+                        if agent_active:
+                            print("[SYSTEM] Agent ACTIVATED. Listening...")
+                            # Optionally take a screenshot upon activation for context
+                            b64_img = await asyncio.to_thread(capture_screen_as_base64)
+                            await websocket.send(json.dumps({
+                                "type": "image",
+                                "data": b64_img
+                            }))
+                            await websocket.send(json.dumps({
+                                "type": "text",
+                                "text": "System: The user has activated the agent. I am now listening. Here is a screenshot of my current screen."
+                            }))
+                        else:
+                            print("[SYSTEM] Agent DEACTIVATED. Passive mode.")
+
+                    if keyboard.is_pressed('ctrl+alt+v'):
                         await asyncio.sleep(0.5)
                         text = await asyncio.to_thread(input, "\n[Prompt] Enter message: ")
                         if text.strip():
