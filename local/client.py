@@ -4,6 +4,14 @@ import json
 import base64
 import keyboard
 import pyperclip
+import webbrowser
+import os
+import subprocess
+try:
+    import pygetwindow as gw
+except ImportError:
+    gw = None
+
 from audio_handler import AudioHandler, CHUNK_SIZE
 from vision import capture_screen_as_base64
 from action import take_action
@@ -193,6 +201,47 @@ async def client_loop():
                                     await respond_and_trigger_next({"content": clipboard_text})
                                 except Exception as e:
                                     await respond_and_trigger_next({"error": f"Failed to read clipboard: {str(e)}"})
+
+                            elif name == "open_url":
+                                url = args.get("url", "")
+                                if url:
+                                    print(f"[SYSTEM] Opening URL: {url}")
+                                    webbrowser.open(url)
+                                    await respond_and_trigger_next({"status": "success", "message": f"Opened {url}"})
+                                else:
+                                    await respond_and_trigger_next({"error": "No URL provided."})
+
+                            elif name == "open_app":
+                                app_name = args.get("app_name", "")
+                                if app_name:
+                                    print(f"[SYSTEM] Opening App: {app_name}")
+                                    subprocess.Popen(f"start {app_name}", shell=True)
+                                    await respond_and_trigger_next({"status": "success", "message": f"Launched {app_name}"})
+                                else:
+                                    await respond_and_trigger_next({"error": "No app_name provided."})
+
+                            elif name == "list_open_windows":
+                                if gw:
+                                    # Filter out empty or invisible titles
+                                    windows = [w.title for w in gw.getAllWindows() if w.title and w.visible]
+                                    await respond_and_trigger_next({"windows": windows})
+                                else:
+                                    await respond_and_trigger_next({"error": "pygetwindow is not installed/supported."})
+
+                            elif name == "focus_window":
+                                title = args.get("title", "")
+                                if gw and title:
+                                    windows = gw.getWindowsWithTitle(title)
+                                    if windows:
+                                        try:
+                                            windows[0].activate()
+                                            await respond_and_trigger_next({"status": "success", "message": f"Focused window: {title}"})
+                                        except Exception as e:
+                                            await respond_and_trigger_next({"error": f"Failed to focus window: {str(e)}"})
+                                    else:
+                                        await respond_and_trigger_next({"error": f"No window found matching title: {title}"})
+                                else:
+                                    await respond_and_trigger_next({"error": "Missing title or pygetwindow not installed."})
                             
                             elif name == "request_screenshot":
                                 print("Taking screenshot...")
