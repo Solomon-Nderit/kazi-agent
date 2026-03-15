@@ -57,12 +57,13 @@ async def take_action(actions, abort_flag=None):
     elif action == 'click_and_drag':
         start_target = normalized_to_coords(actions['target'])
         end_target = normalized_to_coords(actions['end_target'])
-        pyautogui.moveTo(start_target)
-        pyautogui.mouseDown()
-        # Small wait to ensure drag initiates properly
-        await asyncio.sleep(0.1)
-        pyautogui.moveTo(end_target, duration=0.25) # Give it an organic drag curve
-        pyautogui.mouseUp()
+        pyautogui.moveTo(start_target[0], start_target[1], duration=0.2)
+        await asyncio.sleep(0.5) # Wait for UI to register the mouse hover
+        pyautogui.mouseDown(button='left')
+        await asyncio.sleep(0.2) # Explicit pause after pressing down
+        pyautogui.moveTo(end_target[0], end_target[1], duration=1.0) # Slower, deliberate drag
+        await asyncio.sleep(0.2)
+        pyautogui.mouseUp(button='left')
 
     elif action in ['click_and_type', 'click_and_type_text']:
         target = normalized_to_coords(actions['target'])
