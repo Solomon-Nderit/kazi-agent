@@ -34,7 +34,8 @@ def execute_pc_action(action: str, target: str = "", value: str = "") -> dict:
 
 
 async def client_loop():
-    uri = "wss://kazi-copilot-brain-603050312015.us-central1.run.app"
+    # uri = "wss://kazi-copilot-brain-603050312015.us-central1.run.app"
+    uri = " ws://localhost:8765"
     
     audio = AudioHandler()
     audio.start_playback()
