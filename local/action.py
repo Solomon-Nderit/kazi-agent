@@ -1,7 +1,7 @@
 import pyautogui
 import re
 import time
-
+import asyncio
 
 def normalized_to_coords(target):
     # Parses target as normalized coordinates (y, x) scaled 0-1000
@@ -20,7 +20,23 @@ def normalized_to_coords(target):
     return x, y
 
 
-def take_action(actions):
+async def type_text_interruptible(text, abort_flag):
+    """Types text character by character so it can be interrupted."""
+    for char in text:
+        if abort_flag and abort_flag.is_set():
+            raise asyncio.CancelledError("Action aborted by user.")
+        pyautogui.write(char)
+        await asyncio.sleep(0.01)
+
+async def wait_interruptible(seconds, abort_flag):
+    """Waits in tiny chunks to allow immediate interruption."""
+    chunks = int(seconds / 0.1)
+    for _ in range(chunks):
+        if abort_flag and abort_flag.is_set():
+            raise asyncio.CancelledError("Action aborted by user.")
+        await asyncio.sleep(0.1)
+
+async def take_action(actions, abort_flag=None):
     action = actions.get('action')
     value = actions.get('value', '')
 
@@ -41,10 +57,10 @@ def take_action(actions):
         target = normalized_to_coords(actions['target'])
         pyautogui.moveTo(target)
         pyautogui.click()
-        pyautogui.typewrite(value)
+        await type_text_interruptible(value, abort_flag)
 
     elif action == 'type_text':
-        pyautogui.typewrite(value)
+        await type_text_interruptible(value, abort_flag)
 
     elif action in ['press_key', 'press_keyboard_key']:
         if value not in pyautogui.KEYBOARD_KEYS:
@@ -81,7 +97,7 @@ def take_action(actions):
         # value should be seconds to wait
         try:
             wait_amount = float(value)
-            time.sleep(wait_amount)
+            await wait_interruptible(wait_amount, abort_flag)
         except ValueError:
              raise ValueError(f"Wait value must be a number (seconds), got: {value}")
 
