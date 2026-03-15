@@ -3,6 +3,7 @@ import websockets
 import json
 import base64
 import keyboard
+import pyperclip
 from audio_handler import AudioHandler, CHUNK_SIZE
 from vision import capture_screen_as_base64
 from action import take_action
@@ -20,10 +21,11 @@ if platform.system() == "Windows":
         except Exception:
             pass
 
-async def execute_pc_action(action: str, target: str = "", value: str = "", abort_flag=None) -> dict:
+async def execute_pc_action(action: str, target: str = "", value: str = "", end_target: str = "", abort_flag=None) -> dict:
     actions_dict = {'action': action}
     if target: actions_dict['target'] = target
     if value: actions_dict['value'] = value
+    if end_target: actions_dict['end_target'] = end_target
 
     print(f"\n[SYSTEM] Executing local action: {actions_dict}")
     try:
@@ -184,6 +186,13 @@ async def client_loop():
                                     result = await execute_pc_action(abort_flag=state.abort_flag, **args)
                                     await respond_and_trigger_next(result)
                                 asyncio.create_task(bg_execute())
+
+                            elif name == "get_clipboard_content":
+                                try:
+                                    clipboard_text = pyperclip.paste()
+                                    await respond_and_trigger_next({"content": clipboard_text})
+                                except Exception as e:
+                                    await respond_and_trigger_next({"error": f"Failed to read clipboard: {str(e)}"})
                             
                             elif name == "request_screenshot":
                                 print("Taking screenshot...")

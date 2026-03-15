@@ -2,6 +2,7 @@ import pyautogui
 import re
 import time
 import asyncio
+import pyperclip
 
 def normalized_to_coords(target):
     # Parses target as normalized coordinates (y, x) scaled 0-1000
@@ -42,7 +43,7 @@ async def take_action(actions, abort_flag=None):
 
     valid_actions = [
         'click', 'move_mouse_and_click', 'click_and_type', 'click_and_type_text', 
-        'type_text', 'press_key', 'press_keyboard_key', 'double_click', 'right_click', 
+        'click_and_drag', 'type_text', 'press_key', 'press_keyboard_key', 'double_click', 'right_click', 
         'hotkey', 'scroll', 'wait'
     ]
     if action not in valid_actions:
@@ -52,6 +53,16 @@ async def take_action(actions, abort_flag=None):
         target = normalized_to_coords(actions['target'])
         pyautogui.moveTo(target)
         pyautogui.click()
+
+    elif action == 'click_and_drag':
+        start_target = normalized_to_coords(actions['target'])
+        end_target = normalized_to_coords(actions['end_target'])
+        pyautogui.moveTo(start_target)
+        pyautogui.mouseDown()
+        # Small wait to ensure drag initiates properly
+        await asyncio.sleep(0.1)
+        pyautogui.moveTo(end_target, duration=0.25) # Give it an organic drag curve
+        pyautogui.mouseUp()
 
     elif action in ['click_and_type', 'click_and_type_text']:
         target = normalized_to_coords(actions['target'])
@@ -101,24 +112,26 @@ async def take_action(actions, abort_flag=None):
         except ValueError:
              raise ValueError(f"Wait value must be a number (seconds), got: {value}")
 
-def execute_pc_action(action: str, target: str = "", value: str = "") -> dict:
+async def execute_pc_action(action: str, abort_flag: asyncio.Event = None, target: str = "", value: str = "", end_target: str = "") -> dict:
     """Executes a PC automation action on the user's screen.
     
     Args:
-        action: The type of action to perform. Must be one of: 'click', 'click_and_type', 'press_key'.
-        target: The grid coordinate label (e.g., 'A1', 'C5'). Leave empty if not applicable.
-        value: The text to type or the keyboard key to press. Leave empty if not applicable.
+        action: The type of action to perform.
+        target: The grid coordinate label (e.g., '500, 500'). 
+        value: The text to type or the keyboard key to press. 
+        end_target: The end coordinate grid label for dragging.
     """
-    # Repackage the arguments into the dictionary your original function expects
     actions_dict = {'action': action}
     if target: 
         actions_dict['target'] = target
     if value: 
         actions_dict['value'] = value
+    if end_target:
+        actions_dict['end_target'] = end_target
 
     print(f"\n[SYSTEM] Executing local action: {actions_dict}")
     try:
-        take_action(actions_dict) # This calls your existing pyautogui logic
+        await take_action(actions_dict, abort_flag=abort_flag)
         return {"status": "success", "message": f"Successfully performed {action}."}
     except Exception as e:
         return {"status": "error", "message": f"Failed due to error: {str(e)}"}
