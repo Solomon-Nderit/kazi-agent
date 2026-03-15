@@ -1,5 +1,5 @@
 from action import take_action
-from screenshot import get_screen_with_grid
+from local.misc.screenshot import get_screen_with_grid
 
 import requests
 import re
