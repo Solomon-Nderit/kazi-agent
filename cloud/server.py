@@ -97,8 +97,12 @@ async def handle_client(websocket):
         print(f"Error: {e}")
 
 async def main():
-    async with websockets.serve(handle_client, "0.0.0.0", 8765):
-        print("Server listening on ws://localhost:8765")
+    # Cloud Run injects the PORT environment variable.
+    # We fallback to 8765 for local testing if the var is missing.
+    port = int(os.environ.get("PORT", 8765))
+    
+    async with websockets.serve(handle_client, "0.0.0.0", port):
+        print(f"Server listening on ws://0.0.0.0:{port}")
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
