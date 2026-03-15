@@ -14,9 +14,28 @@ def request_screenshot():
     """Takes a screenshot of the user's current screen and uploads it to your visual context so you can see the UI."""
     pass
 
+def start_objective(description: str):
+    """Starts a new background objective loop on the user's PC. Instead of micromanaging the workflow with immediate clicks, use this tool when the user asks you to complete a multi-step task.
+    Args:
+        description: A clear description of the ultimate goal you need to achieve.
+    """
+    pass
+
+def pause_current_task():
+    """Pauses the current background objective loop. Use this if you need to ask the user a verifying question before continuing (e.g. before sending an email or spending money), or if the user asks you to hold on."""
+    pass
+
+def resume_current_task():
+    """Resumes the paused background objective loop."""
+    pass
+
+def finish_objective():
+    """Declares the current multi-step objective completely finished. Always call this when you have completed what the user asked you to do in an objective loop."""
+    pass
+
 def abort_current_task():
     """Instantly cancels and aborts any active or queued physical PC actions (typing, moving, waiting) on the user's machine. 
     Use this immediately if the user asks you to stop, wait, pause, or freeze during an operation."""
     pass
 
-TOOLS = [execute_pc_action, request_screenshot, abort_current_task]
+TOOLS = [execute_pc_action, request_screenshot, start_objective, pause_current_task, resume_current_task, finish_objective, abort_current_task]
