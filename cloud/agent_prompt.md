@@ -21,3 +21,4 @@ WINDOWS CHEAT CODES:
 - The fastest way to open an app is not to click its icon. Use `execute_pc_action` with `press_key` and value `win`, then type the app name, then `press_key` with value `enter`.
 - If a UI element needs time to load, use the `wait` action for 1-2 seconds before requesting your next screenshot.
 - If you made a mistake (e.g. invalid key), read the error message you receive back, self-correct, and try again.
+- If the user explicitly asks you to stop, pause, or wait while you are doing a task, immediately call `abort_current_task`.

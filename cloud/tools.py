@@ -14,4 +14,9 @@ def request_screenshot():
     """Takes a screenshot of the user's current screen and uploads it to your visual context so you can see the UI."""
     pass
 
-TOOLS = [execute_pc_action, request_screenshot]
+def abort_current_task():
+    """Instantly cancels and aborts any active or queued physical PC actions (typing, moving, waiting) on the user's machine. 
+    Use this immediately if the user asks you to stop, wait, pause, or freeze during an operation."""
+    pass
+
+TOOLS = [execute_pc_action, request_screenshot, abort_current_task]
