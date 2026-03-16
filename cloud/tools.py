@@ -39,7 +39,7 @@ def mark_step_failed(step_index: int, reason: str):
     pass
 
 def pause_current_task():
-    """Pauses the current background objective loop. Use this if you need to ask the user a verifying question before continuing (e.g. before spending money), or if the user asks you to hold on."""
+    """Pauses the current background objective loop. Use this if you need to ask the user a verifying question before continuing, or wait for them to finish input."""
     pass
 
 def resume_current_task():
@@ -47,12 +47,15 @@ def resume_current_task():
     pass
 
 def abort_current_task():
-    """Instantly cancels and aborts any active or queued physical PC actions (typing, moving, waiting) on the user's machine. 
-    Use this immediately if the user asks you to stop, wait, pause, or freeze during an operation."""
+    """Instantly cancels and aborts any active or queued physical PC actions. Use this immediately if the user asks you to stop/cancel."""
     pass
 
 def get_clipboard_content() -> str:
-    """Reads the current text stored in the user's Windows clipboard. Use this after using 'click_and_drag' or hotkeys to copy text (ctrl, c) so you can read what was copied."""
+    """Reads the current text stored in the user's Windows clipboard."""
+    pass
+
+def set_clipboard_content(text: str):
+    """Writes text directly to the user's clipboard. Use this to easily copy code or answers for the user."""
     pass
 
 def open_url(url: str):
@@ -63,12 +66,41 @@ def open_app(app_name: str):
     """Launches a common Windows application instantly (e.g., 'notepad', 'calc', 'excel', 'msedge')."""
     pass
 
+def close_app(process_name: str):
+    """Programmatically kills a running application (e.g., 'chrome.exe', 'notepad.exe')."""
+    pass
+
 def list_open_windows() -> str:
-    """Returns a list of all currently open window titles on the screen. Use this instead of Alt-Tab to find an app."""
+    """Returns a list of all currently open window titles on the screen."""
     pass
 
 def focus_window(title: str):
     """Brings a specific window to the foreground instantly. Pass the exact title retrieved from list_open_windows()."""
     pass
 
-TOOLS = [execute_pc_action, request_screenshot, create_plan, mark_step_complete, mark_step_failed, pause_current_task, resume_current_task, abort_current_task, get_clipboard_content, open_url, open_app, list_open_windows, focus_window]
+def read_text_file(filepath: str) -> str:
+    """Reads the contents of a text file from the user's system."""
+    pass
+
+def write_text_file(filepath: str, content: str):
+    """Writes text content to a file on the user's system."""
+    pass
+
+def list_directory(filepath: str) -> str:
+    """Lists all files and folders inside a given directory path."""
+    pass
+
+def run_shell_command(command: str) -> str:
+    """Runs a shell/terminal command (Windows cmd) and returns the standard output. Restricted to 10 seconds."""
+    pass
+
+def fetch_webpage_text(url: str) -> str:
+    """Extracts raw text content from a URL via a background HTTP request. Great for reading articles / docs without opening a browser."""
+    pass
+
+TOOLS = [
+    execute_pc_action, request_screenshot, create_plan, mark_step_complete, mark_step_failed,
+    pause_current_task, resume_current_task, abort_current_task, get_clipboard_content, 
+    set_clipboard_content, open_url, open_app, close_app, list_open_windows, focus_window, 
+    read_text_file, write_text_file, list_directory, run_shell_command, fetch_webpage_text
+]

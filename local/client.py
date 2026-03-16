@@ -270,6 +270,14 @@ async def client_loop():
                                 except Exception as e:
                                     await respond_and_trigger_next({"error": f"Failed to read clipboard: {str(e)}"})
 
+                            elif name == "set_clipboard_content":
+                                text = args.get("text", "")
+                                try:
+                                    pyperclip.copy(text)
+                                    await respond_and_trigger_next({"status": "success", "message": "Copied to clipboard."})
+                                except Exception as e:
+                                    await respond_and_trigger_next({"error": f"Failed to set clipboard: {str(e)}"})
+
                             elif name == "open_url":
                                 url = args.get("url", "")
                                 if url:
@@ -287,6 +295,15 @@ async def client_loop():
                                     await respond_and_trigger_next({"status": "success", "message": f"Launched {app_name}"})
                                 else:
                                     await respond_and_trigger_next({"error": "No app_name provided."})
+
+                            elif name == "close_app":
+                                process_name = args.get("process_name", "")
+                                if process_name:
+                                    print(f"[SYSTEM] Closing App: {process_name}")
+                                    os.system(f"taskkill /f /im {process_name}")
+                                    await respond_and_trigger_next({"status": "success", "message": f"Killed {process_name}"})
+                                else:
+                                    await respond_and_trigger_next({"error": "No process_name provided."})
 
                             elif name == "list_open_windows":
                                 if gw:
@@ -310,6 +327,73 @@ async def client_loop():
                                         await respond_and_trigger_next({"error": f"No window found matching title: {title}"})
                                 else:
                                     await respond_and_trigger_next({"error": "Missing title or pygetwindow not installed."})
+                            
+                            elif name == "read_text_file":
+                                filepath = args.get("filepath", "")
+                                try:
+                                    with open(filepath, 'r', encoding='utf-8') as f:
+                                        content = f.read()
+                                    await respond_and_trigger_next({"content": content})
+                                except Exception as e:
+                                    await respond_and_trigger_next({"error": str(e)})
+
+                            elif name == "write_text_file":
+                                filepath = args.get("filepath", "")
+                                content = args.get("content", "")
+                                try:
+                                    with open(filepath, 'w', encoding='utf-8') as f:
+                                        f.write(content)
+                                    await respond_and_trigger_next({"status": "success", "message": f"Wrote to {filepath}"})
+                                except Exception as e:
+                                    await respond_and_trigger_next({"error": str(e)})
+
+                            elif name == "list_directory":
+                                filepath = args.get("filepath", ".")
+                                try:
+                                    items = os.listdir(filepath)
+                                    await respond_and_trigger_next({"items": items})
+                                except Exception as e:
+                                    await respond_and_trigger_next({"error": str(e)})
+
+                            elif name == "run_shell_command":
+                                command = args.get("command", "")
+                                try:
+                                    result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=10)
+                                    output = result.stdout if result.returncode == 0 else result.stderr
+                                    await respond_and_trigger_next({"output": output, "returncode": result.returncode})
+                                except subprocess.TimeoutExpired:
+                                    await respond_and_trigger_next({"error": "Command timed out after 10 seconds."})
+                                except Exception as e:
+                                    await respond_and_trigger_next({"error": str(e)})
+                            
+                            elif name == "fetch_webpage_text":
+                                url = args.get("url", "")
+                                try:
+                                    import urllib.request
+                                    from html.parser import HTMLParser
+
+                                    class MLStripper(HTMLParser):
+                                        def __init__(self):
+                                            super().__init__()
+                                            self.reset()
+                                            self.strict = False
+                                            self.convert_charrefs = True
+                                            self.text = []
+                                        def handle_data(self, d):
+                                            self.text.append(d)
+                                        def get_data(self):
+                                            return ''.join(self.text)
+
+                                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                                    with urllib.request.urlopen(req, timeout=10) as response:
+                                        html = response.read().decode('utf-8')
+                                        s = MLStripper()
+                                        s.feed(html)
+                                        text = s.get_data()
+                                        # truncate to 30k chars to avoid blowing up context
+                                        await respond_and_trigger_next({"text": text[:30000]})
+                                except Exception as e:
+                                    await respond_and_trigger_next({"error": str(e)})
                             
                             elif name == "request_screenshot":
                                 print("Taking screenshot...")
