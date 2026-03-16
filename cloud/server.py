@@ -21,10 +21,7 @@ CONFIG = {
     "system_instruction": AGENT_PROMPT,
     "tools": TOOLS,
     # 1. Enable context window compression to allow infinite token sliding
-    "context_window_compression": types.ContextWindowCompressionConfig(
-        sliding_window=types.SlidingWindow(),
-        trigger_tokens=4096
-    )
+    "context_window_compression": {"sliding_window": {}, "trigger_tokens": 4096}
 }
 
 async def handle_client(websocket):
@@ -73,6 +70,7 @@ async def handle_client(websocket):
                                         
                                         # Let the tool response cleanly route to Gemini before accepting image streams
                                         await asyncio.sleep(0.5)
+                                        await websocket.send(json.dumps({"type": "all_tools_complete"}))
 
                                     if data.get("is_screenshot"):
                                         async def send_auto_prompt():

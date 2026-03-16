@@ -59,7 +59,7 @@ async def take_action(actions=None, state_obj=None, **kwargs):
 
     if action in ['click', 'move_mouse_and_click']:
         target = normalized_to_coords(actions['target'])
-        pyautogui.moveTo(target)
+        pyautogui.moveTo(target[0], target[1], duration=0.5)
         pyautogui.click()
 
     elif action == 'click_and_drag':
@@ -80,7 +80,7 @@ async def take_action(actions=None, state_obj=None, **kwargs):
 
     elif action in ['click_and_type', 'click_and_type_text']:
         target = normalized_to_coords(actions['target'])
-        pyautogui.moveTo(target)
+        pyautogui.moveTo(target[0], target[1], duration=0.5)
         pyautogui.click()
         await type_text_interruptible(value, state_obj)
 
@@ -94,12 +94,12 @@ async def take_action(actions=None, state_obj=None, **kwargs):
 
     elif action == 'double_click':
         target = normalized_to_coords(actions['target'])
-        pyautogui.moveTo(target)
+        pyautogui.moveTo(target[0], target[1], duration=0.5)
         pyautogui.doubleClick()
 
     elif action == 'right_click':
         target = normalized_to_coords(actions['target'])
-        pyautogui.moveTo(target)
+        pyautogui.moveTo(target[0], target[1], duration=0.5)
         pyautogui.rightClick()
 
     elif action == 'hotkey':

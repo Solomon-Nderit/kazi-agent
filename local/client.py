@@ -62,6 +62,10 @@ class AgentState:
         self.plan_steps = []
         self.current_step_index = 0
         self.loop_phase = 'idle'
+        self.is_paused = False
+        # Clear the flag so audio keeps playing after the abort finishes.
+        # The flag only needs to be set momentarily to flush running actions.
+        self.abort_flag.clear()
     
     def reset(self):
         self.abort_flag.clear()
@@ -201,6 +205,12 @@ async def client_loop():
                                 audio_queue_output.get_nowait()
                             # Do NOT forcefully pause the objective loop. Let Gemini's `pause_current_task` tool handle it if needed.
 
+                        elif data.get("type") == "all_tools_complete":
+                            if state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
+                                # Give the UI a moment to show the results of whatever the completely finished batch of tools was
+                                await asyncio.sleep(2)
+                                ready_for_next_step.set()
+
                         elif data.get("type") == "tool_call":
                             name = data["name"]
                             args = data["args"]
@@ -226,15 +236,12 @@ async def client_loop():
                                     "response": result_dict,
                                     "is_screenshot": is_screenshot
                                 }))
-                                # If there's an objective running, let it know we finished a step
+                                # If there's an objective running, track the phase so the unified trigger catches it
                                 if state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
                                     if not is_screenshot and not bypass_trigger: # screenshots trigger their own continuation
                                         # If the tool wasn't a verification tool itself, advance to verification phase
                                         if name not in ["mark_step_complete", "mark_step_failed", "create_plan"]:
                                             state.loop_phase = 'verifying'
-                                        
-                                        await asyncio.sleep(3) # brief pause to let UI settle
-                                        ready_for_next_step.set()
 
                             if name == "create_plan":
                                 print(f"[SYSTEM] Agent generated a plan for: {args.get('objective')}")
@@ -272,7 +279,6 @@ async def client_loop():
                             elif name == "resume_current_task":
                                 print("[SYSTEM] Resuming background task...")
                                 state.is_paused = False
-                                ready_for_next_step.set()
                                 await respond_and_trigger_next({"status": "success", "message": "Loop resumed."})
 
                             elif name == "abort_current_task":
@@ -292,19 +298,9 @@ async def client_loop():
                                 async def bg_execute():
                                     try:
                                         result = await execute_pc_action(state_obj=state, **args)
-                                        # Manually set phase and trigger next step since bypass_trigger=True below
+                                        # Manually set phase so the unified trigger catches it globally later
                                         if state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
                                             state.loop_phase = 'verifying'
-                                            await asyncio.sleep(2) # brief pause to let UI settle
-                                            ready_for_next_step.set()
-                                        elif not state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
-                                            # Freeform mode. Trigger a standalone screenshot so the agent's eyes update!
-                                            await asyncio.sleep(2.0)
-                                            b64_img = await asyncio.to_thread(capture_screen_as_base64)
-                                            await websocket.send(json.dumps({
-                                                "type": "image",
-                                                "data": b64_img
-                                            }))
                                     except Exception as e:
                                         print(f"[Exec Error] {e}")
 
