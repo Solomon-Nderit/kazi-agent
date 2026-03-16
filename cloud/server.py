@@ -21,7 +21,7 @@ CONFIG = {
     "system_instruction": AGENT_PROMPT,
     "tools": TOOLS,
     # 1. Enable context window compression to allow infinite token sliding
-    "context_window_compression": {"sliding_window": {}}
+    "context_window_compression": {"sliding_window": {}, "trigger_tokens": 4096}
 }
 
 async def handle_client(websocket):
@@ -49,7 +49,8 @@ async def handle_client(websocket):
                         nonlocal expected_tool_responses, tool_response_buffer
                         async for message in websocket:
                             if isinstance(message, bytes):
-                                await session.send_realtime_input(audio=types.Blob(data=message, mime_type="audio/pcm"))
+                                if expected_tool_responses == 0:
+                                    await session.send_realtime_input(audio=types.Blob(data=message, mime_type="audio/pcm"))
                             else:
                                 data = json.loads(message)
                                 if "type" in data and data["type"] == "text":
@@ -89,35 +90,44 @@ async def handle_client(websocket):
                     async def receive_from_gemini():
                         nonlocal expected_tool_responses, previous_session_handle
                         while True:
-                            turn = session.receive()
-                            async for response in turn:
-                                # A. Check for resumption breadcrumbs
-                                if getattr(response, "session_resumption_update", None):
-                                    update = response.session_resumption_update
-                                    if getattr(update, "resumable", False) and getattr(update, "new_handle", None):
-                                        previous_session_handle = update.new_handle
+                            try:
+                                turn = session.receive()
+                                async for response in turn:
+                                    # A. Check for resumption breadcrumbs
+                                    if getattr(response, "session_resumption_update", None):
+                                        update = response.session_resumption_update
+                                        if getattr(update, "resumable", False) and getattr(update, "new_handle", None):
+                                            previous_session_handle = update.new_handle
 
-                                # B. Capture GoAway signal
-                                if getattr(response, "go_away", None):
-                                    print("Server hit time limit. GoAway received. Reconnecting...")
-                                    return # Exits the task gracefully
+                                    # B. Capture GoAway signal
+                                    if getattr(response, "go_away", None):
+                                        print("Server hit time limit. GoAway received. Reconnecting...")
+                                        return # Exits the task gracefully
 
-                                # C. Normal audio output
-                                if getattr(response, "server_content", None) and getattr(response.server_content, "model_turn", None):
-                                    for part in response.server_content.model_turn.parts:
-                                        if getattr(part, "inline_data", None) and isinstance(part.inline_data.data, bytes):
-                                            await websocket.send(part.inline_data.data)
+                                    # C. Normal audio output
+                                    if getattr(response, "server_content", None) and getattr(response.server_content, "model_turn", None):
+                                        for part in response.server_content.model_turn.parts:
+                                            if getattr(part, "inline_data", None) and isinstance(part.inline_data.data, bytes):
+                                                await websocket.send(part.inline_data.data)
 
-                                # D. Tool Calls
-                                if getattr(response, "tool_call", None):
-                                    expected_tool_responses = len(response.tool_call.function_calls)
-                                    for function_call in response.tool_call.function_calls:
-                                        await websocket.send(json.dumps({
-                                            "type": "tool_call",
-                                            "id": function_call.id,
-                                            "name": function_call.name,
-                                            "args": function_call.args
-                                        }))
+                                    # D. Tool Calls
+                                    if getattr(response, "tool_call", None):
+                                        expected_tool_responses = len(response.tool_call.function_calls)
+                                        for function_call in response.tool_call.function_calls:
+                                            await websocket.send(json.dumps({
+                                                "type": "tool_call",
+                                                "id": function_call.id,
+                                                "name": function_call.name,
+                                                "args": function_call.args
+                                            }))
+                            except asyncio.CancelledError:
+                                print("Turn cancelled (likely user interruption/VAD). Continuing session...")
+                                # Do not break or return; just continue the loop
+                                continue
+                            except Exception as e:
+                                print(f"Error in Gemini receive loop: {e}")
+                                return
+
 
                     # Run both tasks until ONE finishes (meaning either websocket drops OR Gemini resets)
                     task_client = asyncio.create_task(receive_from_client())

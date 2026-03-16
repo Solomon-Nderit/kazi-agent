@@ -72,8 +72,8 @@ class AgentState:
         self.loop_phase = 'idle'
 
 async def client_loop():
-    uri = "wss://kazi-copilot-brain-603050312015.us-central1.run.app"
-    # uri = " ws://localhost:8765"
+    # uri = "wss://kazi-copilot-brain-603050312015.us-central1.run.app"
+    uri = " ws://localhost:8765"
     
     audio = AudioHandler()
     audio.start_playback()
@@ -100,6 +100,9 @@ async def client_loop():
                     ready_for_next_step.clear()
 
                     if state.abort_flag.is_set() or state.is_paused or not state.plan_objective:
+                        break
+                    
+                    if state.current_step_index >= len(state.plan_steps):
                         break
                     
                     current_step_desc = state.plan_steps[state.current_step_index]
@@ -202,7 +205,7 @@ async def client_loop():
                                         if name not in ["mark_step_complete", "mark_step_failed", "create_plan"]:
                                             state.loop_phase = 'verifying'
                                         
-                                        await asyncio.sleep(2) # brief pause to let UI settle
+                                        await asyncio.sleep(3) # brief pause to let UI settle
                                         ready_for_next_step.set()
 
                             if name == "create_plan":
@@ -260,7 +263,15 @@ async def client_loop():
                                 # Run taking action as a background task to not block the socket
                                 async def bg_execute():
                                     result = await execute_pc_action(abort_flag=state.abort_flag, **args)
-                                    await respond_and_trigger_next(result)
+                                    # Manually set phase and trigger next step since bypass_trigger=True below
+                                    if state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
+                                        state.loop_phase = 'verifying'
+                                        await asyncio.sleep(2) # brief pause to let UI settle
+                                        ready_for_next_step.set()
+
+                                # Instantly satisfy Gemini's turn so it resumes listening
+                                await asyncio.sleep(0.5)
+                                await respond_and_trigger_next({"status": "Started tool execution in background..."}, bypass_trigger=True)
                                 asyncio.create_task(bg_execute())
 
                             elif name == "get_clipboard_content":

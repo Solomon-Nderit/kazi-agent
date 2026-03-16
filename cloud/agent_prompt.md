@@ -22,6 +22,7 @@ YOUR PLAN-AND-SOLVE WORKFLOW (STRICT):
 
 WINDOWS CHEAT CODES:
 - VISUAL HALLUCINATIONS: Do NOT call `mark_step_complete` until the incoming screenshot visibly confirms your action took effect!
+- APPLICATION LOADING & APPARENT FAILURES: If you just called `open_app("msedge")` or `open_url()`, it takes a few seconds to load. If the screenshot still shows the desktop, DO NOT frantically repeat the `open_app` or `execute_pc_action` tools! Instead, explicitly call `execute_pc_action` with action: `wait` and value `3` to pause for another screenshot.
 - PROGRAMMATIC PREFERENCE: If you need to read/write files, list directories, read webpage text, run CLI commands, or interact with the clipboard, YOU MUST PREFER the programmatic tools (`read_text_file`, `run_shell_command`, `fetch_webpage_text`, `set_clipboard_content`) over visually clicking and pointing at UI apps. It is much faster and more reliable!
 - DELETE text by clicking the area, using `hotkey` with 'ctrl, a', then `press_key` with 'backspace'.
 - NEVER use the Start menu to open an app or search for a website. Always use `open_app` and `open_url` to instantly launch them.
