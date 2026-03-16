@@ -73,7 +73,8 @@ async def handle_client(websocket):
 
                                     if data.get("is_screenshot"):
                                         async def send_auto_prompt():
-                                            await asyncio.sleep(1.5)
+                                            # Give 2.5 seconds to ensure the agent receives the image entirely before asking it to look at it
+                                            await asyncio.sleep(2.5)
                                             await session.send_realtime_input(
                                                 text="System: The new screenshot is now in your visual context. Please analyze the grid and decide your next action or answer the user."
                                             )
@@ -188,8 +189,8 @@ async def handle_client(websocket):
                      print(f"Session state error or expired handle (1008): {e}")
                      print("Dropping handle and reconnecting cleanly...")
                      previous_session_handle = None
-                     await asyncio.sleep(1)
-                     continue
+                     # Allow task to return and hit the while True reconnect without the corrupted handle
+                     return
 
                 print(f"Gemini connection interrupted: {e}. Reconnecting in background...")
                 await asyncio.sleep(1)
@@ -203,7 +204,7 @@ async def main():
     # We fallback to 8765 for local testing if the var is missing.
     port = int(os.environ.get("PORT", 8765))
     
-    async with websockets.serve(handle_client, "0.0.0.0", port):
+    async with websockets.serve(handle_client, "0.0.0.0", port, max_size=None):
         print(f"Server listening on ws://0.0.0.0:{port}")
         await asyncio.Future()  # run forever
 

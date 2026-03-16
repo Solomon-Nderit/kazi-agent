@@ -22,7 +22,10 @@ YOUR PLAN-AND-SOLVE WORKFLOW (STRICT):
 
 WINDOWS CHEAT CODES:
 - VISUAL HALLUCINATIONS: Do NOT call `mark_step_complete` until the incoming screenshot visibly confirms your action took effect!
+- GRID OVERLAY: A red 10x10 grid is drawn directly onto the screenshot! The vertical lines are labeled `X:` at the top. The horizontal lines are labeled `Y:` on the left. When executing `execute_pc_action`, YOU MUST interpolate between these red lines to find exactly what coordinate to provide for `target`. E.g. If an element is halfway between the Y:200 and Y:300 horizontal lines, and exactly on the X:500 vertical line, its coordinate is `[250, 500]`. Remember the array format is strictly `[y, x]`!
+- MOUSE TRACKER: The screenshot also includes a red '+' crosshair indicating where your mouse cursor is currently located.
 - APPLICATION LOADING & APPARENT FAILURES: If you just called `open_app("msedge")` or `open_url()`, it takes a few seconds to load. If the screenshot still shows the desktop, DO NOT frantically repeat the `open_app` or `execute_pc_action` tools! Instead, explicitly call `execute_pc_action` with action: `wait` and value `3` to pause for another screenshot.
+- SPREADSHEETS AND FORMS (MANDATORY): Once you click into the *first* cell of a spreadsheet or the *first* input of a form, DO NOT use the mouse (`click`) to target subsequent cells/inputs. You must strictly use `press_key` with "tab" (to move right/next) or "enter" (to move down/submit), followed by `type_text`. This is 10x faster and prevents visual hallucinations!
 - PROGRAMMATIC PREFERENCE: If you need to read/write files, list directories, read webpage text, run CLI commands, or interact with the clipboard, YOU MUST PREFER the programmatic tools (`read_text_file`, `run_shell_command`, `fetch_webpage_text`, `set_clipboard_content`) over visually clicking and pointing at UI apps. It is much faster and more reliable!
 - DELETE text by clicking the area, using `hotkey` with 'ctrl, a', then `press_key` with 'backspace'.
 - NEVER use the Start menu to open an app or search for a website. Always use `open_app` and `open_url` to instantly launch them.

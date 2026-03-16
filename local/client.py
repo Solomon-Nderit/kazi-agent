@@ -80,7 +80,7 @@ async def client_loop():
     mic_stream = audio.start_recording()
 
     try:
-        async with websockets.connect(uri) as websocket:
+        async with websockets.connect(uri, max_size=None) as websocket:
             print("Connected to cloud server...")
             
             state = AgentState()
@@ -108,15 +108,20 @@ async def client_loop():
                     current_step_desc = state.plan_steps[state.current_step_index]
 
                     print(f"\n[Objective Loop] Phase: {state.loop_phase} | Step {state.current_step_index + 1}/{len(state.plan_steps)}: {current_step_desc}")
+                    
+                    # Give UI a sec to ingest the frame BEFORE snapshot
+                    await asyncio.sleep(1.0)
+                    
                     b64_img = await asyncio.to_thread(capture_screen_as_base64)
                     
                     await websocket.send(json.dumps({
                         "type": "image",
                         "data": b64_img
                     }))
-
-                    # Give Gemini's backend a sec to ingest the frame
-                    await asyncio.sleep(1.0)
+                    
+                    # CRITICAL FIX: Delay prompt by at least 1.5 seconds so Google's Live API backend
+                    # finishes ingesting the asynchronous "Video Frame" payload into its visual context buffer
+                    await asyncio.sleep(2.0)
                     
                     if state.loop_phase == 'executing':
                         prompt = f"System Objective Engine: The overall objective is '{state.plan_objective}'. We are currently on Step {state.current_step_index + 1}: '{current_step_desc}'. Above is the current screen. Achieve this specific step using your PC tools. Do NOT attempt subsequent steps. If the step is already complete, call mark_step_complete()."
@@ -135,6 +140,10 @@ async def client_loop():
                     state.reset()
                     
             agent_active = False
+            is_executing_action = False
+            
+            import time
+            last_executed_tool = {"signature": None, "time": 0}
 
             async def send_audio():
                 while True:
@@ -152,7 +161,8 @@ async def client_loop():
                         agent_active = not agent_active
                         if agent_active:
                             print("[SYSTEM] Agent ACTIVATED. Listening...")
-                            # Optionally take a screenshot upon activation for context
+                            # Give UI time to paint if user just Alt Tabbed
+                            await asyncio.sleep(1.0)
                             b64_img = await asyncio.to_thread(capture_screen_as_base64)
                             await websocket.send(json.dumps({
                                 "type": "image",
@@ -188,6 +198,17 @@ async def client_loop():
                             name = data["name"]
                             args = data["args"]
                             call_id = data["id"]
+                            
+                            # Provide debounce filtering for accidental identical duplicate requests in the same turn
+                            signature = f"{name}_{json.dumps(args, sort_keys=True)}"
+                            current_time = time.time()
+                            if signature == last_executed_tool["signature"] and (current_time - last_executed_tool["time"]) < 2.0:
+                                print(f"[SYSTEM] Silently dropping identical concurrent tool call: {name}")
+                                # Do NOT reply to Gemini. Assume the first one is handling it.
+                                continue
+                            
+                            last_executed_tool["signature"] = signature
+                            last_executed_tool["time"] = current_time
                             
                             # Define what happens when tools complete to notify the objective loop
                             async def respond_and_trigger_next(result_dict, is_screenshot=False, bypass_trigger=False):
@@ -262,12 +283,23 @@ async def client_loop():
                             elif name == "execute_pc_action":
                                 # Run taking action as a background task to not block the socket
                                 async def bg_execute():
-                                    result = await execute_pc_action(abort_flag=state.abort_flag, **args)
-                                    # Manually set phase and trigger next step since bypass_trigger=True below
-                                    if state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
-                                        state.loop_phase = 'verifying'
-                                        await asyncio.sleep(2) # brief pause to let UI settle
-                                        ready_for_next_step.set()
+                                    try:
+                                        result = await execute_pc_action(abort_flag=state.abort_flag, **args)
+                                        # Manually set phase and trigger next step since bypass_trigger=True below
+                                        if state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
+                                            state.loop_phase = 'verifying'
+                                            await asyncio.sleep(2) # brief pause to let UI settle
+                                            ready_for_next_step.set()
+                                        elif not state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
+                                            # Freeform mode. Trigger a standalone screenshot so the agent's eyes update!
+                                            await asyncio.sleep(2.0)
+                                            b64_img = await asyncio.to_thread(capture_screen_as_base64)
+                                            await websocket.send(json.dumps({
+                                                "type": "image",
+                                                "data": b64_img
+                                            }))
+                                    except Exception as e:
+                                        print(f"[Exec Error] {e}")
 
                                 # Instantly satisfy Gemini's turn so it resumes listening
                                 await asyncio.sleep(0.5)
@@ -408,15 +440,16 @@ async def client_loop():
                             
                             elif name == "request_screenshot":
                                 print("Taking screenshot...")
+
+                                # Crucial: Let the tool turn close and UI render before bombarding frames
+                                await asyncio.sleep(1.0)
+
                                 b64_img = await asyncio.to_thread(capture_screen_as_base64)
                                 
                                 await respond_and_trigger_next({
                                     "status": "success",
                                     "message": "Screenshot uploaded. System will auto-prompt."
                                 }, is_screenshot=True)
-
-                                # Crucial: Let the tool turn close on Gemini's backend before bombarding frames
-                                await asyncio.sleep(1.0)
 
                                 await websocket.send(json.dumps({
                                     "type": "image",

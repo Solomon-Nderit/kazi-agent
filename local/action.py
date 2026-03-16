@@ -37,9 +37,11 @@ async def wait_interruptible(seconds, abort_flag):
             raise asyncio.CancelledError("Action aborted by user.")
         await asyncio.sleep(0.1)
 
-async def take_action(actions, abort_flag=None):
-    action = actions.get('action')
-    value = actions.get('value', '')
+async def take_action(actions=None, abort_flag=None, **kwargs):
+    if actions is None: 
+        actions = kwargs
+    action = actions.get('action') or kwargs.get('action')
+    value = actions.get('value') or kwargs.get('value', '')
 
     valid_actions = [
         'click', 'move_mouse_and_click', 'click_and_type', 'click_and_type_text', 

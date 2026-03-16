@@ -1,6 +1,6 @@
 from typing import Literal
 
-def execute_pc_action(action: Literal['click', 'double_click', 'right_click', 'click_and_type', 'click_and_drag', 'type_text', 'press_key', 'hotkey', 'scroll', 'wait'], target: str = "", value: str = "", end_target: str = "") -> dict:
+def execute_pc_action(action: Literal['click', 'double_click', 'right_click', 'click_and_type', 'click_and_drag', 'type_text', 'press_key', 'hotkey', 'scroll', 'wait'], target: str = "", value: str = "", end_target: str = "", **kwargs) -> dict:
     """Executes a PC automation action on the user's screen.
     
     Args:
