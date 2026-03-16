@@ -15,23 +15,35 @@ def request_screenshot():
     """Takes a screenshot of the user's current screen and uploads it to your visual context so you can see the UI."""
     pass
 
-def start_objective(description: str):
-    """Starts a new background objective loop on the user's PC. Instead of micromanaging the workflow with immediate clicks, use this tool when the user asks you to complete a multi-step task.
+def create_plan(objective: str, steps: list[str]):
+    """Starts a new background objective loop on the user's PC. Use this to plan out a multi-step task before executing it.
     Args:
-        description: A clear description of the ultimate goal you need to achieve.
+        objective: A clear description of the ultimate goal you need to achieve.
+        steps: A list of string descriptions for each sequential step.
+    """
+    pass
+
+def mark_step_complete(step_index: int):
+    """Marks the current step as complete after you have visually verified it succeeded on the screen.
+    Args:
+        step_index: The index of the step you are marking complete.
+    """
+    pass
+
+def mark_step_failed(step_index: int, reason: str):
+    """Marks the current step as failed. Call this if an action isn't working after multiple tries and you need to rethink the plan.
+    Args:
+        step_index: The index of the failed step.
+        reason: Why it failed.
     """
     pass
 
 def pause_current_task():
-    """Pauses the current background objective loop. Use this if you need to ask the user a verifying question before continuing (e.g. before sending an email or spending money), or if the user asks you to hold on."""
+    """Pauses the current background objective loop. Use this if you need to ask the user a verifying question before continuing (e.g. before spending money), or if the user asks you to hold on."""
     pass
 
 def resume_current_task():
     """Resumes the paused background objective loop."""
-    pass
-
-def finish_objective():
-    """Declares the current multi-step objective completely finished. Always call this when you have completed what the user asked you to do in an objective loop."""
     pass
 
 def abort_current_task():
@@ -59,4 +71,4 @@ def focus_window(title: str):
     """Brings a specific window to the foreground instantly. Pass the exact title retrieved from list_open_windows()."""
     pass
 
-TOOLS = [execute_pc_action, request_screenshot, start_objective, pause_current_task, resume_current_task, finish_objective, abort_current_task, get_clipboard_content, open_url, open_app, list_open_windows, focus_window]
+TOOLS = [execute_pc_action, request_screenshot, create_plan, mark_step_complete, mark_step_failed, pause_current_task, resume_current_task, abort_current_task, get_clipboard_content, open_url, open_app, list_open_windows, focus_window]

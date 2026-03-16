@@ -48,22 +48,32 @@ async def execute_pc_action(action: str, target: str = "", value: str = "", end_
 
 class AgentState:
     def __init__(self):
-        self.current_objective = None
+        self.plan_objective = None
+        self.plan_steps = []
+        self.current_step_index = 0
+        self.loop_phase = 'idle' # 'idle', 'planning', 'executing', 'verifying'
+        
         self.is_paused = False
         self.abort_flag = asyncio.Event()
 
     def abort(self):
         self.abort_flag.set()
-        self.current_objective = None
-        # We don't change pause state since aborting inherently stops the loop
+        self.plan_objective = None
+        self.plan_steps = []
+        self.current_step_index = 0
+        self.loop_phase = 'idle'
     
     def reset(self):
         self.abort_flag.clear()
         self.is_paused = False
+        self.plan_objective = None
+        self.plan_steps = []
+        self.current_step_index = 0
+        self.loop_phase = 'idle'
 
 async def client_loop():
-    # uri = "wss://kazi-copilot-brain-603050312015.us-central1.run.app"
-    uri = " ws://localhost:8765"
+    uri = "wss://kazi-copilot-brain-603050312015.us-central1.run.app"
+    # uri = " ws://localhost:8765"
     
     audio = AudioHandler()
     audio.start_playback()
@@ -79,7 +89,7 @@ async def client_loop():
             ready_for_next_step.set()
             
             async def run_objective_loop():
-                while state.current_objective:
+                while state.plan_objective and state.current_step_index < len(state.plan_steps):
                     if state.abort_flag.is_set():
                         break
                     if state.is_paused:
@@ -89,22 +99,37 @@ async def client_loop():
                     await ready_for_next_step.wait()
                     ready_for_next_step.clear()
 
-                    if state.abort_flag.is_set() or state.is_paused or not state.current_objective:
+                    if state.abort_flag.is_set() or state.is_paused or not state.plan_objective:
                         break
+                    
+                    current_step_desc = state.plan_steps[state.current_step_index]
 
-                    # Request next instruction using screenshot
-                    print(f"\n[Objective Loop] Reporting state for objective: {state.current_objective}")
+                    print(f"\n[Objective Loop] Phase: {state.loop_phase} | Step {state.current_step_index + 1}/{len(state.plan_steps)}: {current_step_desc}")
                     b64_img = await asyncio.to_thread(capture_screen_as_base64)
                     
                     await websocket.send(json.dumps({
                         "type": "image",
                         "data": b64_img
                     }))
+
+                    # Give Gemini's backend a sec to ingest the frame
+                    await asyncio.sleep(1.0)
+                    
+                    if state.loop_phase == 'executing':
+                        prompt = f"System Objective Engine: The overall objective is '{state.plan_objective}'. We are currently on Step {state.current_step_index + 1}: '{current_step_desc}'. Above is the current screen. Achieve this specific step using your PC tools. Do NOT attempt subsequent steps. If the step is already complete, call mark_step_complete()."
+                    elif state.loop_phase == 'verifying':
+                        prompt = f"System Verification Engine: You just attempted Step {state.current_step_index + 1}: '{current_step_desc}'. Look at the visual screen state. Did the action succeed? If yes, call mark_step_complete(). If it failed or needs another action, explain why and issue the next execute_pc_action to try again. If it is hopelessly stuck, call mark_step_failed()."
+                    else:
+                        prompt = "System: Awaiting next command."
                     
                     await websocket.send(json.dumps({
                         "type": "text",
-                        "text": f"System Objective Engine: The current objective is '{state.current_objective}'. Above is the current screen. What is the EXACT NEXT STEP to achieve this objective? Remember if the objective is complete, you must explicitly tell me so we can end the loop."
+                        "text": prompt
                     }))
+                
+                if state.plan_objective and state.current_step_index >= len(state.plan_steps):
+                    print(f"\n[SYSTEM] Objective '{state.plan_objective}' finished entirely.")
+                    state.reset()
                     
             agent_active = False
 
@@ -162,7 +187,7 @@ async def client_loop():
                             call_id = data["id"]
                             
                             # Define what happens when tools complete to notify the objective loop
-                            async def respond_and_trigger_next(result_dict, is_screenshot=False):
+                            async def respond_and_trigger_next(result_dict, is_screenshot=False, bypass_trigger=False):
                                 await websocket.send(json.dumps({
                                     "type": "tool_response",
                                     "id": call_id,
@@ -171,20 +196,42 @@ async def client_loop():
                                     "is_screenshot": is_screenshot
                                 }))
                                 # If there's an objective running, let it know we finished a step
-                                if state.current_objective and not state.is_paused and not state.abort_flag.is_set():
-                                    if not is_screenshot: # screenshots trigger their own continuation
+                                if state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
+                                    if not is_screenshot and not bypass_trigger: # screenshots trigger their own continuation
+                                        # If the tool wasn't a verification tool itself, advance to verification phase
+                                        if name not in ["mark_step_complete", "mark_step_failed", "create_plan"]:
+                                            state.loop_phase = 'verifying'
+                                        
                                         await asyncio.sleep(2) # brief pause to let UI settle
                                         ready_for_next_step.set()
 
-                            if name == "start_objective":
-                                print(f"[SYSTEM] Starting new objective: {args.get('description')}")
+                            if name == "create_plan":
+                                print(f"[SYSTEM] Agent generated a plan for: {args.get('objective')}")
+                                print(f"[SYSTEM] Steps: {args.get('steps')}")
                                 state.reset()
-                                state.current_objective = args.get("description")
+                                state.plan_objective = args.get("objective")
+                                state.plan_steps = args.get("steps", [])
+                                state.current_step_index = 0
+                                state.loop_phase = 'executing'
+                                
                                 if objective_task and not objective_task.done():
                                     objective_task.cancel()
-                                ready_for_next_step.set()
+                                
                                 objective_task = asyncio.create_task(run_objective_loop())
-                                await respond_and_trigger_next({"status": "success", "message": "Objective loop started in background."})
+                                await respond_and_trigger_next({"status": "success", "message": "Plan accepted. Objective loop starting."}, bypass_trigger=False)
+
+                            elif name == "mark_step_complete":
+                                print(f"[SYSTEM] Step {state.current_step_index + 1} completed!")
+                                state.current_step_index += 1
+                                state.loop_phase = 'executing'
+                                await respond_and_trigger_next({"status": "success", "message": "Step marked complete. Proceeding to next step."}, bypass_trigger=False)
+                            
+                            elif name == "mark_step_failed":
+                                reason = args.get('reason', 'Unknown')
+                                print(f"[SYSTEM] Step failed! Reason: {reason}")
+                                state.loop_phase = 'idle'
+                                state.plan_objective = None
+                                await respond_and_trigger_next({"status": "success", "message": "Loop halted. Awaiting your new plan."})
 
                             elif name == "pause_current_task":
                                 print("[SYSTEM] Pausing background task...")
@@ -205,7 +252,7 @@ async def client_loop():
 
                             elif name == "finish_objective":
                                 print("[SYSTEM] Objective completed!")
-                                state.current_objective = None
+                                state.reset()
                                 if objective_task: objective_task.cancel()
                                 await respond_and_trigger_next({"status": "success", "message": "Objective finished."})
 
@@ -267,14 +314,19 @@ async def client_loop():
                             elif name == "request_screenshot":
                                 print("Taking screenshot...")
                                 b64_img = await asyncio.to_thread(capture_screen_as_base64)
+                                
+                                await respond_and_trigger_next({
+                                    "status": "success",
+                                    "message": "Screenshot uploaded. System will auto-prompt."
+                                }, is_screenshot=True)
+
+                                # Crucial: Let the tool turn close on Gemini's backend before bombarding frames
+                                await asyncio.sleep(1.0)
+
                                 await websocket.send(json.dumps({
                                     "type": "image",
                                     "data": b64_img
                                 }))
-                                await respond_and_trigger_next({
-                                    "status": "success", 
-                                    "message": "Screenshot uploaded. System will auto-prompt."
-                                }, is_screenshot=True)
 
             await asyncio.gather(send_audio(), send_text_cli(), receive_messages())
 

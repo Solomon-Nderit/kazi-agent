@@ -42,7 +42,11 @@ async def handle_client(websocket):
             try:
                 async with client.aio.live.connect(model=MODEL, config=current_config) as session:
                     
+                    expected_tool_responses = 0
+                    tool_response_buffer = []
+
                     async def receive_from_client():
+                        nonlocal expected_tool_responses, tool_response_buffer
                         async for message in websocket:
                             if isinstance(message, bytes):
                                 await session.send_realtime_input(audio=types.Blob(data=message, mime_type="audio/pcm"))
@@ -56,22 +60,34 @@ async def handle_client(websocket):
                                         name=data["name"],
                                         response=data["response"]
                                     )
-                                    await session.send_tool_response(function_responses=[resp])
+                                    tool_response_buffer.append(resp)
                                     
+                                    if expected_tool_responses == 0 or len(tool_response_buffer) >= expected_tool_responses:
+                                        await session.send_tool_response(function_responses=tool_response_buffer)
+                                        tool_response_buffer = []
+                                        expected_tool_responses = 0
+                                        
+                                        # Let the tool response cleanly route to Gemini before accepting image streams
+                                        await asyncio.sleep(0.5)
+
                                     if data.get("is_screenshot"):
-                                        await asyncio.sleep(1.5)
-                                        await session.send_realtime_input(
-                                            text="System: The new screenshot is now in your visual context. Please analyze the grid and decide your next action or answer the user."
-                                        )
+                                        async def send_auto_prompt():
+                                            await asyncio.sleep(1.5)
+                                            await session.send_realtime_input(
+                                                text="System: The new screenshot is now in your visual context. Please analyze the grid and decide your next action or answer the user."
+                                            )
+                                        asyncio.create_task(send_auto_prompt())
+
                                 elif "type" in data and data["type"] == "image":
                                     import base64
                                     img_bytes = base64.b64decode(data["data"])
+
                                     await session.send_realtime_input(
                                         video=types.Blob(data=img_bytes, mime_type="image/jpeg")
                                     )
 
                     async def receive_from_gemini():
-                        nonlocal previous_session_handle
+                        nonlocal expected_tool_responses, previous_session_handle
                         while True:
                             turn = session.receive()
                             async for response in turn:
@@ -94,6 +110,7 @@ async def handle_client(websocket):
 
                                 # D. Tool Calls
                                 if getattr(response, "tool_call", None):
+                                    expected_tool_responses = len(response.tool_call.function_calls)
                                     for function_call in response.tool_call.function_calls:
                                         await websocket.send(json.dumps({
                                             "type": "tool_call",
@@ -124,7 +141,7 @@ async def handle_client(websocket):
                     client_disconnected = False
                     for task in done:
                         try:
-                            # This will re-raise the exception if the task threw one (e.g. connection closed)
+                            # This will re-raise the exception if the task threw one
                             task.result()
                         except websockets.exceptions.ConnectionClosed:
                             print("Client fully disconnected.")
@@ -135,7 +152,8 @@ async def handle_client(websocket):
                                 print(f"Client websocket closed abruptly: {e}")
                                 client_disconnected = True
                             else:
-                                raise e # Re-raise if it's a Gemini error so the outer try-catch handles it
+                                print(f"Warning: Non-fatal task exception intercepted: {e}")
+                                # Do NOT re-raise. Just let the outer loop try connecting to Gemini again.
 
                     if client_disconnected or (task_client in done and not task_client.exception()):
                         return # Break entirely out of the handle_client `while True` loop so it stops spinning up sessions
@@ -152,12 +170,13 @@ async def handle_client(websocket):
             except Exception as e:
                 # If the error is regarding the initial connection or a policy violation (like missing model), we should abort instead of endlessly looping.
                 err_str = str(e).lower()
-                if "1008" in err_str or "policy violation" in err_str:
-                     print(f"\nFATAL API ERROR (Likely invalid MODEL): {e}")
+                if "policy violation" in err_str:
+                     print(f"\nFATAL API ERROR: {e}")
                      print("Aborting connection loops.")
                      break
-                elif "not found" in err_str:
-                     print(f"Session handle not found or expired. Dropping handle and restarting fresh... ({e})")
+                elif "1008" in err_str or "not found" in err_str:
+                     print(f"Session state error or expired handle (1008): {e}")
+                     print("Dropping handle and reconnecting cleanly...")
                      previous_session_handle = None
                      await asyncio.sleep(1)
                      continue
