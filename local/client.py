@@ -29,7 +29,7 @@ if platform.system() == "Windows":
         except Exception:
             pass
 
-async def execute_pc_action(action: str, target: str = "", value: str = "", end_target: str = "", abort_flag=None) -> dict:
+async def execute_pc_action(action: str, target: str = "", value: str = "", end_target: str = "", state_obj=None) -> dict:
     actions_dict = {'action': action}
     if target: actions_dict['target'] = target
     if value: actions_dict['value'] = value
@@ -37,7 +37,7 @@ async def execute_pc_action(action: str, target: str = "", value: str = "", end_
 
     print(f"\n[SYSTEM] Executing local action: {actions_dict}")
     try:
-        await take_action(actions_dict, abort_flag=abort_flag)
+        await take_action(actions_dict, state_obj=state_obj)
         return {"status": "success", "message": f"Successfully performed {action}."}
     except asyncio.CancelledError:
         print("[SYSTEM] Action aborted by user.")
@@ -85,6 +85,7 @@ async def client_loop():
             
             state = AgentState()
             objective_task = None
+            audio_queue_output = asyncio.Queue()
             ready_for_next_step = asyncio.Event()
             ready_for_next_step.set()
             
@@ -189,12 +190,18 @@ async def client_loop():
                 nonlocal objective_task
                 async for message in websocket:
                     if isinstance(message, bytes):
-                        # Playback audio
-                        if not state.abort_flag.is_set():
-                            await asyncio.to_thread(audio.play_chunk, message)
+                        # Enqueue audio instantly to avoid blocking the websocket loop
+                        audio_queue_output.put_nowait(message)
                     else:
                         data = json.loads(message)
-                        if data.get("type") == "tool_call":
+                        
+                        if data.get("type") == "turn_complete":
+                            # Received VAD timeout or natural turn completion. Instantly silence the queue.
+                            while not audio_queue_output.empty():
+                                audio_queue_output.get_nowait()
+                            # Do NOT forcefully pause the objective loop. Let Gemini's `pause_current_task` tool handle it if needed.
+
+                        elif data.get("type") == "tool_call":
                             name = data["name"]
                             args = data["args"]
                             call_id = data["id"]
@@ -284,7 +291,7 @@ async def client_loop():
                                 # Run taking action as a background task to not block the socket
                                 async def bg_execute():
                                     try:
-                                        result = await execute_pc_action(abort_flag=state.abort_flag, **args)
+                                        result = await execute_pc_action(state_obj=state, **args)
                                         # Manually set phase and trigger next step since bypass_trigger=True below
                                         if state.plan_objective and not state.is_paused and not state.abort_flag.is_set():
                                             state.loop_phase = 'verifying'
@@ -456,7 +463,13 @@ async def client_loop():
                                     "data": b64_img
                                 }))
 
-            await asyncio.gather(send_audio(), send_text_cli(), receive_messages())
+            async def play_audio():
+                while True:
+                    chunk = await audio_queue_output.get()
+                    if not state.abort_flag.is_set() and not state.is_paused:
+                        await asyncio.to_thread(audio.play_chunk, chunk)
+
+            await asyncio.gather(send_audio(), send_text_cli(), receive_messages(), play_audio())
 
     except Exception as e:
         print(f"Disconnected: {e}")

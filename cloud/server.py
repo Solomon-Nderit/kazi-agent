@@ -21,7 +21,10 @@ CONFIG = {
     "system_instruction": AGENT_PROMPT,
     "tools": TOOLS,
     # 1. Enable context window compression to allow infinite token sliding
-    "context_window_compression": {"sliding_window": {}, "trigger_tokens": 4096}
+    "context_window_compression": types.ContextWindowCompressionConfig(
+        sliding_window=types.SlidingWindow(),
+        trigger_tokens=4096
+    )
 }
 
 async def handle_client(websocket):
@@ -121,11 +124,12 @@ async def handle_client(websocket):
                                                 "name": function_call.name,
                                                 "args": function_call.args
                                             }))
-                            except asyncio.CancelledError:
-                                print("Turn cancelled (likely user interruption/VAD). Continuing session...")
-                                # Do not break or return; just continue the loop
-                                continue
+                                            
+                                # E. Turn fully completed natively without voice interruption
+                                await websocket.send(json.dumps({"type": "turn_complete"}))
                             except Exception as e:
+                                if isinstance(e, asyncio.CancelledError):
+                                    raise  # Allow the task to cleanly shut down without entering a zombie `session.receive()` loop
                                 print(f"Error in Gemini receive loop: {e}")
                                 return
 
@@ -189,8 +193,8 @@ async def handle_client(websocket):
                      print(f"Session state error or expired handle (1008): {e}")
                      print("Dropping handle and reconnecting cleanly...")
                      previous_session_handle = None
-                     # Allow task to return and hit the while True reconnect without the corrupted handle
-                     return
+                     # Allow task to continue and hit the while True reconnect without the corrupted handle
+                     continue
 
                 print(f"Gemini connection interrupted: {e}. Reconnecting in background...")
                 await asyncio.sleep(1)

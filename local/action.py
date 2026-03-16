@@ -21,23 +21,29 @@ def normalized_to_coords(target):
     return x, y
 
 
-async def type_text_interruptible(text, abort_flag):
+async def type_text_interruptible(text, state_obj):
     """Types text character by character so it can be interrupted."""
     for char in text:
-        if abort_flag and abort_flag.is_set():
-            raise asyncio.CancelledError("Action aborted by user.")
+        if state_obj:
+            if state_obj.abort_flag.is_set():
+                raise asyncio.CancelledError("Action aborted by user.")
+            while state_obj.is_paused:
+                await asyncio.sleep(0.1)
         pyautogui.write(char)
         await asyncio.sleep(0.01)
 
-async def wait_interruptible(seconds, abort_flag):
+async def wait_interruptible(seconds, state_obj):
     """Waits in tiny chunks to allow immediate interruption."""
     chunks = int(seconds / 0.1)
     for _ in range(chunks):
-        if abort_flag and abort_flag.is_set():
-            raise asyncio.CancelledError("Action aborted by user.")
+        if state_obj:
+            if state_obj.abort_flag.is_set():
+                raise asyncio.CancelledError("Action aborted by user.")
+            while state_obj.is_paused:
+                await asyncio.sleep(0.1)
         await asyncio.sleep(0.1)
 
-async def take_action(actions=None, abort_flag=None, **kwargs):
+async def take_action(actions=None, state_obj=None, **kwargs):
     if actions is None: 
         actions = kwargs
     action = actions.get('action') or kwargs.get('action')
@@ -76,10 +82,10 @@ async def take_action(actions=None, abort_flag=None, **kwargs):
         target = normalized_to_coords(actions['target'])
         pyautogui.moveTo(target)
         pyautogui.click()
-        await type_text_interruptible(value, abort_flag)
+        await type_text_interruptible(value, state_obj)
 
     elif action == 'type_text':
-        await type_text_interruptible(value, abort_flag)
+        await type_text_interruptible(value, state_obj)
 
     elif action in ['press_key', 'press_keyboard_key']:
         if value not in pyautogui.KEYBOARD_KEYS:
@@ -116,11 +122,11 @@ async def take_action(actions=None, abort_flag=None, **kwargs):
         # value should be seconds to wait
         try:
             wait_amount = float(value)
-            await wait_interruptible(wait_amount, abort_flag)
+            await wait_interruptible(wait_amount, state_obj)
         except ValueError:
              raise ValueError(f"Wait value must be a number (seconds), got: {value}")
 
-async def execute_pc_action(action: str, abort_flag: asyncio.Event = None, target: str = "", value: str = "", end_target: str = "") -> dict:
+async def execute_pc_action(action: str, state_obj=None, target: str = "", value: str = "", end_target: str = "") -> dict:
     """Executes a PC automation action on the user's screen.
     
     Args:
@@ -139,7 +145,7 @@ async def execute_pc_action(action: str, abort_flag: asyncio.Event = None, targe
 
     print(f"\n[SYSTEM] Executing local action: {actions_dict}")
     try:
-        await take_action(actions_dict, abort_flag=abort_flag)
+        await take_action(actions_dict, state_obj=state_obj)
         return {"status": "success", "message": f"Successfully performed {action}."}
     except Exception as e:
         return {"status": "error", "message": f"Failed due to error: {str(e)}"}
