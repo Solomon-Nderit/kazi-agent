@@ -6,7 +6,7 @@ Built for the **Google Gemini Live Agent Challenge**.
 
 [![Demo Video](https://img.youtube.com/vi/BnsdTORLwww/maxresdefault.jpg)](https://youtu.be/BnsdTORLwww)
 
-[![Download KaziAgent.exe](https://img.shields.io/badge/⬇%20Download-KaziAgent.exe-0a84ff?style=for-the-badge&logo=windows)](https://github.com/Solomon-Nderit/kazi-agent/releases/download/v1.0.0/KaziAgent.exe)
+[![Download KaziAgent.exe](https://img.shields.io/badge/⬇%20Download-KaziAgent.exe-0a84ff?style=for-the-badge&logo=windows)](https://github.com/Solomon-Nderit/kazi-agent/releases/download/v1.1.0/KaziAgent.exe)
 > **No install needed.** Download, run, and press `Ctrl + Alt + A` to activate. Requires Windows 10/11.
 
 ---
