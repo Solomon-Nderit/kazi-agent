@@ -4,7 +4,7 @@
 
 Built for the **Google Gemini Live Agent Challenge**.
 
-[![Demo Video](https://img.shields.io/badge/Watch-Demo_Video-red?style=for-the-badge&logo=youtube)](#) *(Insert your YouTube link here)*
+[![Demo Video](https://youtu.be/BnsdTORLwww)](#) 
 
 ---
 
@@ -17,7 +17,7 @@ Kazi-Agent acts as your hands on the screen, but it constantly relies on your vo
 
 To ensure security and speed, Kazi-Agent physically separates cloud reasoning from local OS execution. 
 
-![Kazi-Agent Architecture](docs/architecture.png) *(Upload your Mermaid PNG to your repo and link it here)*
+![Kazi-Agent Architecture](https://github.com/Solomon-Nderit/kazi-agent/blob/temp-stable-integration/diagrams/architectural%20diagram.png)
 
 <details>
 <summary><b>View Mermaid.js Source</b></summary>
@@ -94,7 +94,7 @@ We use [`uv`](https://github.com/astral-sh/uv) for lightning-fast Python depende
 ### 1. Installation
 ```bash
 # Clone the repository
-git clone [https://github.com/YOUR_USERNAME/kazi-agent.git](https://github.com/YOUR_USERNAME/kazi-agent.git)
+git clone [https://github.com/Solomon-Nderit/kazi-agent.git](https://github.com/Solomon-Nderit/kazi-agent.git)
 cd kazi-agent
 
 # Install dependencies instantly using uv
@@ -104,7 +104,7 @@ uv sync
 ### 2. Environment Setup
 Create a `.env` file in the root directory and add your Gemini API key:
 ```env
-GEMINI_API_KEY=your_api_key_here
+GOOGLE_API_KEY=your_api_key_here
 PORT=8765
 ```
 
@@ -113,11 +113,13 @@ You need to start the Cloud Brain and the Local Client in two separate terminal 
 
 **Terminal 1 (The Brain):**
 ```bash
+cd cloud
 uv run python server.py
 ```
 
 **Terminal 2 (The Hands):**
 ```bash
+cd local
 uv run python client.py
 ```
 
