@@ -97,7 +97,7 @@ We use [`uv`](https://github.com/astral-sh/uv) for lightning-fast Python depende
 ### 1. Installation
 ```bash
 # Clone the repository
-git clone [https://github.com/Solomon-Nderit/kazi-agent.git](https://github.com/Solomon-Nderit/kazi-agent.git)
+git clone https://github.com/Solomon-Nderit/kazi-agent.git
 cd kazi-agent
 
 # Install dependencies instantly using uv
@@ -105,7 +105,7 @@ uv sync
 ```
 
 ### 2. Environment Setup
-Create a `.env` file in the root directory and add your Gemini API key:
+Create a `.env` file in the cloud directory and add your Gemini API key:
 ```env
 GOOGLE_API_KEY=your_api_key_here
 PORT=8765
