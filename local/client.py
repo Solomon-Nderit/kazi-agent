@@ -76,7 +76,6 @@ class AgentState:
         self.loop_phase = 'idle'
 
 async def client_loop():
-    # uri = "wss://kazi-copilot-brain-603050312015.us-central1.run.app"
     uri = " ws://localhost:8765"
     
     audio = AudioHandler()

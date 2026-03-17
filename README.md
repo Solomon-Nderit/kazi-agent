@@ -86,50 +86,53 @@ graph TD
 
 ## 🛠️ Reproducibility: Spin-Up Instructions
 
-We use [`uv`](https://github.com/astral-sh/uv) for lightning-fast Python dependency management. 
+> **Just want to try it?** Download `KaziAgent.exe` above — no setup needed. It connects to our hosted cloud backend automatically.
+>
+> **Want to self-host?** Follow the steps below to run the full stack locally with your own Gemini API key.
+
+We use [`uv`](https://github.com/astral-sh/uv) for lightning-fast Python dependency management.
 
 ### Prerequisites
 * Python 3.10+
 * `uv` installed (`pip install uv` or via curl)
 * A Google Gemini API Key (with access to `gemini-2.5-flash-native-audio-preview-12-2025`)
-* *(Windows recommended for `pyautogui` and `pygetwindow` compatibility)*
+* *(Windows 10/11 recommended for `pyautogui` and `pygetwindow` compatibility)*
 
 ### 1. Installation
 ```bash
-# Clone the repository
 git clone https://github.com/Solomon-Nderit/kazi-agent.git
 cd kazi-agent
-
-# Install dependencies instantly using uv
 uv sync
 ```
 
 ### 2. Environment Setup
-Create a `.env` file in the cloud directory and add your Gemini API key:
+Create a `.env` file inside the `cloud/` directory:
 ```env
 GOOGLE_API_KEY=your_api_key_here
 PORT=8765
 ```
 
 ### 3. Run the System
-You need to start the Cloud Brain and the Local Client in two separate terminal windows.
+Start the server and client in two separate terminals.
 
-**Terminal 1 (The Brain):**
+**Terminal 1 — The Brain (Cloud Server):**
 ```bash
 cd cloud
 uv run python server.py
 ```
 
-**Terminal 2 (The Hands):**
+**Terminal 2 — The Hands (Local Client):**
 ```bash
 cd local
 uv run python client.py
 ```
 
+> **Note:** `client.py` connects to `ws://localhost:8765` by default — you must have the server running locally. The pre-built `.exe` connects to the hosted backend instead.
+
 ### 4. How to Use
 1. Once both scripts are running, press `Ctrl + Alt + A` to activate the agent's listening mode.
 2. Speak your command clearly (e.g., *"Kazi, look at the PDF on the left and type the invoice number into the spreadsheet on the right."*)
-3. **Tip:** Allow the agent 2-3 seconds to process the visual grid before issuing rapid follow-up commands to account for UI settling time.
+3. **Tip:** Allow the agent 2–3 seconds to process the visual grid before issuing rapid follow-up commands to account for UI settling time.
 
 ---
 
