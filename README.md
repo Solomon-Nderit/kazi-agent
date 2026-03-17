@@ -4,7 +4,7 @@
 
 Built for the **Google Gemini Live Agent Challenge**.
 
-[![Demo Video](https://youtu.be/BnsdTORLwww)](#) 
+[![Demo Video](https://img.youtube.com/vi/BnsdTORLwww/maxresdefault.jpg)](https://youtu.be/BnsdTORLwww)
 
 ---
 
