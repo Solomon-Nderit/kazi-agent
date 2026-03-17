@@ -6,6 +6,9 @@ Built for the **Google Gemini Live Agent Challenge**.
 
 [![Demo Video](https://img.youtube.com/vi/BnsdTORLwww/maxresdefault.jpg)](https://youtu.be/BnsdTORLwww)
 
+[![Download KaziAgent.exe](https://img.shields.io/badge/⬇%20Download-KaziAgent.exe-0a84ff?style=for-the-badge&logo=windows)](https://github.com/Solomon-Nderit/kazi-agent/releases/download/v1.0.0/KaziAgent.exe)
+> **No install needed.** Download, run, and press `Ctrl + Alt + A` to activate. Requires Windows 10/11.
+
 ---
 
 ## 🛑 The Problem with "Autonomous" Agents
@@ -17,7 +20,7 @@ Kazi-Agent acts as your hands on the screen, but it constantly relies on your vo
 
 To ensure security and speed, Kazi-Agent physically separates cloud reasoning from local OS execution. 
 
-![Kazi-Agent Architecture](https://github.com/Solomon-Nderit/kazi-agent/blob/temp-stable-integration/diagrams/architectural%20diagram.png)
+![Kazi-Agent Architecture](diagrams/architectural%20diagram.png)
 
 <details>
 <summary><b>View Mermaid.js Source</b></summary>
